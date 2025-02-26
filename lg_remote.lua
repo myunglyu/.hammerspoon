@@ -191,9 +191,9 @@ end
 
 -- Watcher for system sleep/wake events
 LGRemote.watcher = hs.caffeinate.watcher.new(function(event)
-    if event == hs.caffeinate.watcher.systemWillSleep or event == hs.caffeinate.watcher.screensaverDidStart then
+    if event == hs.caffeinate.watcher.systemWillSleep or event == hs.caffeinate.watcher.screensaverDidStart or event == hs.caffeinate.watcher.screensDidSleep then
         LGRemote.turnOffTV()
-    elseif event == hs.caffeinate.watcher.systemDidWake or event == hs.caffeinate.watcher.screensaverDidStop then
+    elseif event == hs.caffeinate.watcher.systemDidWake or event == hs.caffeinate.watcher.screensaverDidStop or event == hs.caffeinate.watcher.screensDidWake then
         LGRemote.turnOnTV()
         LGRemote.setInput()
     end
