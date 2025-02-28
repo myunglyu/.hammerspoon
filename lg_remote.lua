@@ -4,16 +4,37 @@ local json = require("hs.json")
 LGRemote.config_path = os.getenv("HOME") .. "/.hammerspoon/lg_remote/config.json"
 LGRemote.remote_binary = os.getenv("HOME") .. "/.hammerspoon/lg_remote/lg_remote"
 
-local commandQueue = {}
-local isProcessing = false
-local COMMAND_DELAY = 0.500  -- 500ms between commands
+-- Function to initialize TV control
+function LGRemote.init()
+    -- Check if config file exists
+    local tvConfig = io.open(LGRemote.config_path, "r")
+
+    if not tvConfig then
+        local found_ip = LGRemote.scanForTV()
+        if found_ip then
+            LGRemote.authenticateTV(found_ip)
+        else
+            hs.alert.show("Failed to find LG TV. Please set IP manually.")
+            return
+        end
+    end
+
+    -- Load the config file
+    local input_id = io.open(os.getenv("HOME") .. "/.hammerspoon/lg_remote/pc_input_id.txt", "r")
+    
+    if not input_id then
+        LGRemote.getInputId()
+    end
+
+    LGRemote.bindKeys()
+end
 
 -- Function to scan for LG TVs if no config is found
 function LGRemote.scanForTV()
     hs.alert.show("Scanning for LG TV...")
 
     -- Use absolute path for reliability
-    local scan_cmd = os.getenv("HOME") .. "/.hammerspoon/lg_remote/lg_remote.bin scan"
+    local scan_cmd = LGRemote.remote_binary .. "scan"
     
     -- Execute scan command and capture JSON output
     local output = hs.execute(scan_cmd, true)
@@ -45,7 +66,7 @@ end
 
 -- Function to get input ID for PC
 function LGRemote.getInputId()
-    local cmd = os.getenv("HOME") .. "/.hammerspoon/lg_remote/lg_remote.bin -n TV --ssl listInputs"
+    local cmd = LGRemote.remote_binary .. " -n TV --ssl listInputs"
     local handle = io.popen(cmd)  -- Run command and capture output
     local output = handle:read("*a")
     handle:close()
@@ -101,73 +122,21 @@ function LGRemote.setInput()
     end
 end
 
--- Function to initialize TV control
-function LGRemote.init()
-    -- Check if config file exists
-    local tvConfig = io.open(LGRemote.config_path, "r")
 
-    if not tvConfig then
-        local found_ip = LGRemote.scanForTV()
-        if found_ip then
-            LGRemote.authenticateTV(found_ip)
-        else
-            hs.alert.show("Failed to find LG TV. Please set IP manually.")
-            return
-        end
-    end
-
-    -- Load the config file
-    local input_id = io.open(os.getenv("HOME") .. "/.hammerspoon/lg_remote/pc_input_id.txt", "r")
-    
-    if not input_id then
-        LGRemote.getInputId()
-    end
-
-    LGRemote.bindKeys()
-end
-
+-- Function to send commands to the TV
 function LGRemote.tvCommand(command)
-    -- Create the command string
-    local cmd = LGRemote.remote_binary
-    local args = {"-n", "TV", "--ssl", command}
-    
-    -- Create new task
-    local task = hs.task.new(cmd, function(exitCode, stdOut, stdErr)
-        if exitCode ~= 0 and stdErr then
-            hs.alert.show("Command failed: " .. (stdErr or "unknown error"))
-        end
-        
-        -- Process next command in queue if any
-        if #commandQueue > 0 then
-            hs.timer.doAfter(COMMAND_DELAY, function()
-                local nextCmd = table.remove(commandQueue, 1)
-                LGRemote.tvCommand(nextCmd)
-            end)
-        else
-            isProcessing = false
-        end
-    end, args)
-    
-    -- If we're already processing commands, queue this one
-    if isProcessing then
-        table.insert(commandQueue, command)
-        return
-    end
-    
-    -- Start processing
-    isProcessing = true
-    if not task:start() then
-        hs.alert.show("Failed to execute command: " .. command)
-        isProcessing = false
-    end
+    local cmd = LGRemote.remote_binary .. " -n TV --ssl " .. command
+    hs.execute(cmd, false)
+
 end
 
 function LGRemote.bindKeys()
+
     -- Command key combinations
     local hotkey_map = {
         -- TV Power Control
-        -- ['cmd+shift+p'] = { command = "on", message = "TV Powering On" },
-        -- ['cmd+shift+o'] = { command = "off", message = "TV Powering Off" },
+        ['cmd+shift+p'] = { command = "on", message = "TV Powering On" },
+        ['cmd+shift+o'] = { command = "off", message = "TV Powering Off" },
         
         -- Volume Control with Command key
         ['cmd+shift+up'] = { command = "volumeUp", message = "Volume Up" },
@@ -183,8 +152,30 @@ function LGRemote.bindKeys()
                 -- This is the key, not a modifier
                 local k = mod
                 hs.hotkey.bind(mods, k, function()
-                    LGRemote.tvCommand(action.command)
-                    hs.alert.show(action.message)
+                    if action.command == "mute" then
+                        -- Create task to check audio status
+                        local task = hs.task.new(LGRemote.remote_binary, function(exitCode, stdOut, stdErr)
+                            if exitCode == 0 and stdOut then
+                                if stdOut:match('"muteStatus"%s*:%s*false') then
+                                    LGRemote.tvCommand("mute true")
+                                else
+                                    LGRemote.tvCommand("mute false")
+                                end
+                                hs.alert.show(action.message)
+                            else
+                                hs.alert.show("Failed to get audio status")
+                            end
+                        end, {"-n", "TV", "--ssl", "audioStatus"})
+                        
+                        -- Start the task
+                        if not task:start() then
+                            hs.alert.show("Failed to check audio status")
+                        end
+                    else
+                        -- For non-mute commands
+                        LGRemote.tvCommand(action.command)
+                        hs.alert.show(action.message)
+                    end
                 end)
             else
                 table.insert(mods, mod)
@@ -238,7 +229,7 @@ end
 function LGRemote.checkConnectedDevices()
 
     -- Fetch current inputs to check connected devices
-    local cmd = os.getenv("HOME") .. "/.hammerspoon/lg_remote/lg_remote.bin -n TV --ssl listInputs"
+    local cmd =  LGRemote.remote_binary .. " -n TV --ssl listInputs"
     local handle = io.popen(cmd)  -- Run command and capture output
     local output = handle:read("*a")
     handle:close()
