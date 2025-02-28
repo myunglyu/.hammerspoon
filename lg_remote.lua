@@ -2,7 +2,11 @@ local LGRemote = {}
 local json = require("hs.json")
 
 LGRemote.config_path = os.getenv("HOME") .. "/.hammerspoon/lg_remote/config.json"
-LGRemote.remote_binary = os.getenv("HOME") .. "/.hammerspoon/lg_remote/lg_remote.bin"
+LGRemote.remote_binary = os.getenv("HOME") .. "/.hammerspoon/lg_remote/lg_remote"
+
+local commandQueue = {}
+local isProcessing = false
+local COMMAND_DELAY = 0.500  -- 500ms between commands
 
 -- Function to scan for LG TVs if no config is found
 function LGRemote.scanForTV()
@@ -90,8 +94,7 @@ function LGRemote.setInput()
 
     -- If input_id was retrieved, set the input
     if input_id then
-        local cmd = string.format("%s -n TV --ssl setInput %s", LGRemote.remote_binary, input_id)
-        os.execute(cmd)
+        LGRemote.tvCommand("setInput " .. input_id)
         hs.alert.show("Input set to PC: " .. input_id)
     else
         hs.alert.show("Error: Could not determine PC input ID.")
@@ -124,70 +127,112 @@ function LGRemote.init()
 end
 
 function LGRemote.tvCommand(command)
-    local cmd = string.format("%s -n TV --ssl %s", LGRemote.remote_binary, command)
-    os.execute(cmd)
+    -- Create the command string
+    local cmd = LGRemote.remote_binary
+    local args = {"-n", "TV", "--ssl", command}
+    
+    -- Create new task
+    local task = hs.task.new(cmd, function(exitCode, stdOut, stdErr)
+        if exitCode ~= 0 and stdErr then
+            hs.alert.show("Command failed: " .. (stdErr or "unknown error"))
+        end
+        
+        -- Process next command in queue if any
+        if #commandQueue > 0 then
+            hs.timer.doAfter(COMMAND_DELAY, function()
+                local nextCmd = table.remove(commandQueue, 1)
+                LGRemote.tvCommand(nextCmd)
+            end)
+        else
+            isProcessing = false
+        end
+    end, args)
+    
+    -- If we're already processing commands, queue this one
+    if isProcessing then
+        table.insert(commandQueue, command)
+        return
+    end
+    
+    -- Start processing
+    isProcessing = true
+    if not task:start() then
+        hs.alert.show("Failed to execute command: " .. command)
+        isProcessing = false
+    end
 end
 
 function LGRemote.bindKeys()
-    -- local hotkey_map = {
-    --     P = { "on", "TV Powering On" },
-    --     O = { "off", "TV Powering Off" },
-    --     F12 = { "volumeUp", "Volume Up" },
-    --     F11 = { "volumeDown", "Volume Down" },
-    -- }
+    -- Command key combinations
+    local hotkey_map = {
+        -- TV Power Control
+        -- ['cmd+shift+p'] = { command = "on", message = "TV Powering On" },
+        -- ['cmd+shift+o'] = { command = "off", message = "TV Powering Off" },
+        
+        -- Volume Control with Command key
+        ['cmd+shift+up'] = { command = "volumeUp", message = "Volume Up" },
+        ['cmd+shift+down'] = { command = "volumeDown", message = "Volume Down" },
+        ['cmd+shift+m'] = { command = "mute", message = "Mute Toggle" }
+    }
 
-    -- for key, action in pairs(hotkey_map) do
-    --     hs.hotkey.bind({}, key, function()
-    --         LGRemote.tvCommand(action[1])
-    --         hs.alert.show(action[2])
-    --     end)
-    -- end
-    
-    -- Function to send volume command
+    -- Bind hotkeys
+    for key, action in pairs(hotkey_map) do
+        local mods = {}
+        for mod in key:gmatch("([^%+]+)%+?") do
+            if mod ~= "cmd" and mod ~= "shift" and mod ~= "alt" and mod ~= "ctrl" then
+                -- This is the key, not a modifier
+                local k = mod
+                hs.hotkey.bind(mods, k, function()
+                    LGRemote.tvCommand(action.command)
+                    hs.alert.show(action.message)
+                end)
+            else
+                table.insert(mods, mod)
+            end
+        end
+    end
 
     -- Media Key Mapping for System Keys
     local key_actions = {
-        SOUND_UP = "volumeUp",   -- Volume Up
-        SOUND_DOWN = "volumeDown", -- Volume Down
+        -- SOUND_UP = "volumeUp",   -- Volume Up
+        -- SOUND_DOWN = "volumeDown", -- Volume Down
         -- MUTE = "mute"            -- Mute Toggle
     }
 
     -- Eventtap Listener for Media Keys
-    LGRemote.audio_event_tap = hs.eventtap.new(
-        {hs.eventtap.event.types.systemDefined},
-        function(event)
-            local system_key = event:systemKey()
+    -- LGRemote.audio_event_tap = hs.eventtap.new(
+    --     {hs.eventtap.event.types.systemDefined},
+    --     function(event)
+    --         local system_key = event:systemKey()
             
-            -- Ensure `system_key` exists before using it
-            if system_key and system_key.down then
-                local pressed_key = system_key.key
-                local command = key_actions[pressed_key]
+    --         -- Ensure `system_key` exists before using it
+    --         if system_key and system_key.down then
+    --             local pressed_key = system_key.key
+    --             local command = key_actions[pressed_key]
 
-                if command then
-                    LGRemote.tvCommand(command)
-                    return true  -- Block system volume control (optional)
-                end
-            end
-            return false
-        end
-    )
+    --             if command then
+    --                 LGRemote.tvCommand(command)
+    --                 return true  -- Block system volume control (optional)
+    --             end
+    --         end
+    --         return false
+    --     end
+    -- )
 
     -- Start listening for media keys
-    LGRemote.audio_event_tap:start()
+    -- LGRemote.audio_event_tap:start()
 
 end
 
 -- Function to turn the TV off when Mac sleeps
 function LGRemote.turnOffTV()
     hs.alert.show("Mac is sleeping: Turning off TV...")
-    local cmd = string.format("%s -n TV --ssl off", LGRemote.remote_binary)
-    os.execute(cmd)
+    LGRemote.tvCommand("off")
 end
 
 -- Function to turn the TV on when Mac wakes
 function LGRemote.turnOnTV()
-    local cmd = string.format("%s -n TV --ssl on", LGRemote.remote_binary)
-    os.execute(cmd)
+    LGRemote.tvCommand("on")
 end
 
 function LGRemote.checkConnectedDevices()
