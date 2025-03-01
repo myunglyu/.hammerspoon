@@ -38,7 +38,7 @@ function LGRemote.scanForTV()
     hs.alert.show("Scanning for LG TV...")
 
     -- Use absolute path for reliability
-    local scan_cmd = LGRemote.remote_binary .. "scan"
+    local scan_cmd = LGRemote.remote_binary .. " scan"
     
     -- Execute scan command and capture JSON output
     local output = hs.execute(scan_cmd, true)
@@ -120,7 +120,7 @@ function LGRemote.setInput()
     -- If input_id was retrieved, set the input
     if input_id then
         LGRemote.tvCommand("setInput " .. input_id)
-        hs.alert.show("Input set to PC: " .. input_id)
+        -- hs.alert.show("Input set to PC: " .. input_id)
     else
         hs.alert.show("Error: Could not determine PC input ID.")
     end
@@ -219,16 +219,16 @@ function LGRemote.bindKeys()
 
 end
 
--- Function to turn the TV off when Mac sleeps
-function LGRemote.turnOffTV()
-    hs.alert.show("Mac is sleeping: Turning off TV...")
-    LGRemote.tvCommand("off")
-end
+-- -- Function to turn the TV off when Mac sleeps
+-- function LGRemote.turnOffTV()
+--     hs.alert.show("Mac is sleeping: Turning off TV...")
+--     LGRemote.tvCommand("off")
+-- end
 
--- Function to turn the TV on when Mac wakes
-function LGRemote.turnOnTV()
-    LGRemote.tvCommand("on")
-end
+-- -- Function to turn the TV on when Mac wakes
+-- function LGRemote.turnOnTV()
+--     LGRemote.tvCommand("on")
+-- end
 
 function LGRemote.checkConnectedDevices()
 
@@ -245,24 +245,23 @@ function LGRemote.checkConnectedDevices()
     end
 
     -- If two or more devices are connected, prevent input change
-    return connected_count >= 2
+    return connected_count
 
 end
 
 -- Watcher for system sleep/wake events
 LGRemote.watcher = hs.caffeinate.watcher.new(function(event)
     if event == hs.caffeinate.watcher.systemWillSleep or event == hs.caffeinate.watcher.screensDidSleep then
-        if not LGRemote.checkConnectedDevices() then
-            LGRemote.turnOffTV()
-        end
+        hs.timer.doAfter(5, function()
+            if LGRemote.checkConnectedDevices() == 1 then
+                LGRemote.tvCommand("off")
+            end
+        end)
     elseif event == hs.caffeinate.watcher.systemDidWake or event == hs.caffeinate.watcher.screensDidWake then
-        if not LGRemote.checkConnectedDevices() then
+        LGRemote.tvCommand("on")
+        if LGRemote.checkConnectedDevices() < 2 then
             hs.timer.doAfter(3, function()
-                LGRemote.turnOnTV()
-                hs.timer.doAfter(3, function()
-                    LGRemote.setInput()
-                end)
-            end)
+                LGRemote.setInput() end)
         end
     end
 end)
