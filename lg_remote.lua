@@ -27,6 +27,10 @@ function LGRemote.init()
     end
 
     LGRemote.bindKeys()
+
+    -- Start the watcher
+    LGRemote.watcher:start()
+
 end
 
 -- Function to scan for LG TVs if no config is found
@@ -253,13 +257,14 @@ LGRemote.watcher = hs.caffeinate.watcher.new(function(event)
         end
     elseif event == hs.caffeinate.watcher.systemDidWake or event == hs.caffeinate.watcher.screensDidWake then
         if not LGRemote.checkConnectedDevices() then
-            LGRemote.turnOnTV()
-            LGRemote.setInput()
+            hs.timer.doAfter(3, function()
+                LGRemote.turnOnTV()
+                hs.timer.doAfter(3, function()
+                    LGRemote.setInput()
+                end)
+            end)
         end
     end
 end)
-
--- Start the watcher
-LGRemote.watcher:start()
 
 return LGRemote
