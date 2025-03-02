@@ -139,17 +139,17 @@ function LGRemote.bindKeys()
     -- Command key combinations
     local hotkey_map = {
         -- TV Power Control
-        ['cmd+shift+p'] = { command = "on", message = "TV Powering On" },
-        ['cmd+shift+o'] = { command = "off", message = "TV Powering Off" },
-        ['cmd+shift+1'] = { command = "setInput HDMI_1", message = "" },
-        ['cmd+shift+2'] = { command = "setInput HDMI_2", message = "" },
-        ['cmd+shift+3'] = { command = "setInput HDMI_3", message = "" },
-        ['cmd+shift+4'] = { command = "setInput HDMI_4", message = "" },
+        ['cmd+ctrl+p'] = { command = "on", message = "TV Powering On" },
+        ['cmd+ctrl+o'] = { command = "off", message = "TV Powering Off" },
+        ['cmd+ctrl+1'] = { command = "setInput HDMI_1", message = "" },
+        ['cmd+ctrl+2'] = { command = "setInput HDMI_2", message = "" },
+        ['cmd+ctrl+3'] = { command = "setInput HDMI_3", message = "" },
+        ['cmd+ctrl+4'] = { command = "setInput HDMI_4", message = "" },
         
         -- Volume Control with Command key
-        ['cmd+shift+up'] = { command = "volumeUp", message = "Volume Up" },
-        ['cmd+shift+down'] = { command = "volumeDown", message = "Volume Down" },
-        ['cmd+shift+m'] = { command = "mute", message = "Mute Toggle" }
+        ['cmd+ctrl+up'] = { command = "volumeUp", message = "Volume Up" },
+        ['cmd+ctrl+down'] = { command = "volumeDown", message = "Volume Down" },
+        ['cmd+ctrl+m'] = { command = "mute", message = "Mute Toggle" }
     }
 
     -- Bind hotkeys
