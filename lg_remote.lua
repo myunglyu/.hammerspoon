@@ -253,7 +253,7 @@ end
 LGRemote.watcher = hs.caffeinate.watcher.new(function(event)
     if event == hs.caffeinate.watcher.systemWillSleep or event == hs.caffeinate.watcher.screensDidSleep then
         hs.timer.doAfter(15, function()
-            if LGRemote.checkConnectedDevices() < 1 then
+            if LGRemote.checkConnectedDevices() < 2 then
                 LGRemote.tvCommand("off")
             end
         end)
