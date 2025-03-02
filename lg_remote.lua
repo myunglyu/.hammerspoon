@@ -141,6 +141,10 @@ function LGRemote.bindKeys()
         -- TV Power Control
         ['cmd+shift+p'] = { command = "on", message = "TV Powering On" },
         ['cmd+shift+o'] = { command = "off", message = "TV Powering Off" },
+        ['cmd+shift+1'] = { command = "setInput HDMI_1", message = "" },
+        ['cmd+shift+2'] = { command = "setInput HDMI_2", message = "" },
+        ['cmd+shift+3'] = { command = "setInput HDMI_3", message = "" },
+        ['cmd+shift+4'] = { command = "setInput HDMI_4", message = "" },
         
         -- Volume Control with Command key
         ['cmd+shift+up'] = { command = "volumeUp", message = "Volume Up" },
@@ -252,11 +256,9 @@ end
 -- Watcher for system sleep/wake events
 LGRemote.watcher = hs.caffeinate.watcher.new(function(event)
     if event == hs.caffeinate.watcher.systemWillSleep or event == hs.caffeinate.watcher.screensDidSleep then
-        hs.timer.doAfter(15, function()
-            if LGRemote.checkConnectedDevices() < 2 then
-                LGRemote.tvCommand("off")
-            end
-        end)
+        if LGRemote.checkConnectedDevices() < 2 then
+            LGRemote.tvCommand("off")
+        end
     elseif event == hs.caffeinate.watcher.systemDidWake or event == hs.caffeinate.watcher.screensDidWake then
         LGRemote.tvCommand("on")
         if LGRemote.checkConnectedDevices() < 2 then
