@@ -139,13 +139,17 @@ function LGRemote.bindKeys()
     -- Command key combinations
     local hotkey_map = {
         -- TV Power Control
-        ['cmd+shift+p'] = { command = "on", message = "TV Powering On" },
-        ['cmd+shift+o'] = { command = "off", message = "TV Powering Off" },
+        ['cmd+ctrl+p'] = { command = "on", message = "TV Powering On" },
+        ['cmd+ctrl+o'] = { command = "off", message = "TV Powering Off" },
+        ['cmd+ctrl+1'] = { command = "setInput HDMI_1", message = "" },
+        ['cmd+ctrl+2'] = { command = "setInput HDMI_2", message = "" },
+        ['cmd+ctrl+3'] = { command = "setInput HDMI_3", message = "" },
+        ['cmd+ctrl+4'] = { command = "setInput HDMI_4", message = "" },
         
         -- Volume Control with Command key
-        ['cmd+shift+up'] = { command = "volumeUp", message = "Volume Up" },
-        ['cmd+shift+down'] = { command = "volumeDown", message = "Volume Down" },
-        ['cmd+shift+m'] = { command = "mute", message = "Mute Toggle" }
+        ['cmd+ctrl+up'] = { command = "volumeUp", message = "Volume Up" },
+        ['cmd+ctrl+down'] = { command = "volumeDown", message = "Volume Down" },
+        ['cmd+ctrl+m'] = { command = "mute", message = "Mute Toggle" }
     }
 
     -- Bind hotkeys
@@ -230,7 +234,7 @@ end
 --     LGRemote.tvCommand("on")
 -- end
 
-function LGRemote.checkConnectedDevices()
+function LGRemote.checkOtherDevices()
 
     -- Fetch current inputs to check connected devices
     local cmd =  LGRemote.remote_binary .. " -n TV --ssl listInputs"
@@ -245,23 +249,23 @@ function LGRemote.checkConnectedDevices()
     end
 
     -- If two or more devices are connected, prevent input change
-    return connected_count
+    return connected_count < 2
 
 end
 
 -- Watcher for system sleep/wake events
 LGRemote.watcher = hs.caffeinate.watcher.new(function(event)
-    if event == hs.caffeinate.watcher.systemWillSleep or event == hs.caffeinate.watcher.screensDidSleep then
-        hs.timer.doAfter(5, function()
-            if LGRemote.checkConnectedDevices() == 1 then
-                LGRemote.tvCommand("off")
-            end
-        end)
-    elseif event == hs.caffeinate.watcher.systemDidWake or event == hs.caffeinate.watcher.screensDidWake then
+    if event == hs.caffeinate.watcher.screensDidSleep then
+        if LGRemote.checkOtherDevices() then
+            hs.timer.doAfter(15, function() 
+                hs.execute(LGRemote.remote_binary .. " -n TV --ssl off", false)
+            end)
+        end
+    elseif event == hs.caffeinate.watcher.screensDidWake then
         LGRemote.tvCommand("on")
-        if LGRemote.checkConnectedDevices() < 2 then
+        if LGRemote.checkOtherDevices() then 
             hs.timer.doAfter(3, function()
-                LGRemote.setInput() end)
+                LGRemote.setInput() end) -- Set input to PC after 3 seconds
         end
     end
 end)
