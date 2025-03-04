@@ -14,7 +14,7 @@ function LGRemote.init()
         if found_ip then
             LGRemote.authenticateTV(found_ip)
         else
-            hs.alert.show("Failed to find LG TV. Please set IP manually.")
+            hs.alert.show("Failed to find LG TV.")
             return
         end
     end
