@@ -16,7 +16,7 @@ This Hammerspoon script allows you to control your LG TV using keyboard shortcut
 
 ## Installation Steps
 
-1. **Download the Archive File**: Download the archive file containing the `lg_remote.lua` script.
+1. **Download the Archive File**: Download the archive file containing the `lg_remote.lua` script. [lg_remote.zip](https://github.com/user-attachments/files/19078211/lg_remote.zip)
 
 2. **Unzip the Archive**: Unzip the downloaded archive file into your Hammerspoon configuration directory (`~/.hammerspoon`).
 
