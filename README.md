@@ -31,6 +31,8 @@ This Hammerspoon script allows you to control your LG TV using keyboard shortcut
 
 4. **Set TV Input Name**: Ensure the input name on your LG TV is set to "PC".
 
+5. Reload Config in Hammerspoon.
+
 ## Usage
 
 The script will automatically initialize and start controlling your TV based on the defined keyboard shortcuts and sleep/wake events.
